@@ -362,6 +362,7 @@ class PinballGame {
         this.setupInput();
         this.setupTouchControls();
         this.setupCollisions();
+        this.setupLeaderboardUI();
         this.handleResize();
         window.addEventListener('resize', () => this.handleResize());
 
@@ -861,7 +862,145 @@ class PinballGame {
         }
         
         bestScoreEl.textContent = this.bestScore.toLocaleString();
-        document.getElementById('game-over').style.display = 'flex';
+        
+        this.checkLeaderboardEligibility();
+    }
+    
+    async checkLeaderboardEligibility() {
+        if (typeof database === 'undefined') {
+            document.getElementById('game-over').style.display = 'flex';
+            return;
+        }
+        
+        try {
+            const snapshot = await database.ref('leaderboard').orderByChild('score').limitToLast(10).once('value');
+            const scores = [];
+            snapshot.forEach(child => {
+                scores.push({ key: child.key, ...child.val() });
+            });
+            scores.sort((a, b) => b.score - a.score);
+            
+            const qualifiesForTop10 = scores.length < 10 || this.score > scores[scores.length - 1].score;
+            
+            if (qualifiesForTop10 && this.score > 0) {
+                document.getElementById('modal-score').textContent = this.score.toLocaleString();
+                document.getElementById('player-name').value = '';
+                document.getElementById('name-input-modal').style.display = 'flex';
+            } else {
+                document.getElementById('game-over').style.display = 'flex';
+            }
+        } catch (error) {
+            console.error('Leaderboard check failed:', error);
+            document.getElementById('game-over').style.display = 'flex';
+        }
+    }
+    
+    async submitScore(name) {
+        if (typeof database === 'undefined') return;
+        
+        const playerName = name.trim().toUpperCase() || 'ANON';
+        
+        try {
+            await database.ref('leaderboard').push({
+                name: playerName.substring(0, 10),
+                score: this.score,
+                difficulty: this.difficulty.name,
+                timestamp: Date.now()
+            });
+            
+            await this.cleanupLeaderboard();
+            
+            document.getElementById('name-input-modal').style.display = 'none';
+            document.getElementById('game-over').style.display = 'flex';
+        } catch (error) {
+            console.error('Score submit failed:', error);
+            document.getElementById('name-input-modal').style.display = 'none';
+            document.getElementById('game-over').style.display = 'flex';
+        }
+    }
+    
+    async cleanupLeaderboard() {
+        const snapshot = await database.ref('leaderboard').orderByChild('score').once('value');
+        const scores = [];
+        snapshot.forEach(child => {
+            scores.push({ key: child.key, score: child.val().score });
+        });
+        scores.sort((a, b) => b.score - a.score);
+        
+        if (scores.length > 10) {
+            const toDelete = scores.slice(10);
+            const updates = {};
+            toDelete.forEach(item => {
+                updates[item.key] = null;
+            });
+            await database.ref('leaderboard').update(updates);
+        }
+    }
+    
+    async showLeaderboard() {
+        const listEl = document.getElementById('leaderboard-list');
+        listEl.innerHTML = '<div class="leaderboard-empty">Loading...</div>';
+        document.getElementById('leaderboard-modal').style.display = 'flex';
+        
+        if (typeof database === 'undefined') {
+            listEl.innerHTML = '<div class="leaderboard-empty">Leaderboard unavailable</div>';
+            return;
+        }
+        
+        try {
+            const snapshot = await database.ref('leaderboard').orderByChild('score').limitToLast(10).once('value');
+            const scores = [];
+            snapshot.forEach(child => {
+                scores.push(child.val());
+            });
+            scores.sort((a, b) => b.score - a.score);
+            
+            if (scores.length === 0) {
+                listEl.innerHTML = '<div class="leaderboard-empty">No scores yet. Be the first!</div>';
+                return;
+            }
+            
+            listEl.innerHTML = scores.map((entry, i) => `
+                <div class="leaderboard-entry">
+                    <span class="leaderboard-rank">#${i + 1}</span>
+                    <span class="leaderboard-name">${this.escapeHtml(entry.name)}</span>
+                    <span class="leaderboard-score">${entry.score.toLocaleString()}</span>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Leaderboard load failed:', error);
+            listEl.innerHTML = '<div class="leaderboard-empty">Failed to load leaderboard</div>';
+        }
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    setupLeaderboardUI() {
+        document.getElementById('btn-submit-score')?.addEventListener('click', () => {
+            const name = document.getElementById('player-name').value;
+            this.submitScore(name);
+        });
+        
+        document.getElementById('player-name')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const name = document.getElementById('player-name').value;
+                this.submitScore(name);
+            }
+        });
+        
+        document.getElementById('btn-view-leaderboard')?.addEventListener('click', () => {
+            document.getElementById('game-over').style.display = 'none';
+            this.showLeaderboard();
+        });
+        
+        document.getElementById('btn-close-leaderboard')?.addEventListener('click', () => {
+            document.getElementById('leaderboard-modal').style.display = 'none';
+            document.getElementById('game-over').style.display = 'flex';
+        });
     }
 
     reset() {
