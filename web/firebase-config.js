@@ -1,11 +1,11 @@
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT-default-rtdb.asia-northeast3.firebasedatabase.app",
-    projectId: "YOUR_PROJECT",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyAAELQCF98_q6m9oOD0Po89kqt9eWyfJcI",
+    authDomain: "pinball-leaderboard-63777.firebaseapp.com",
+    databaseURL: "https://pinball-leaderboard-63777-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "pinball-leaderboard-63777",
+    storageBucket: "pinball-leaderboard-63777.firebasestorage.app",
+    messagingSenderId: "823905026435",
+    appId: "1:823905026435:web:928f86d4d104408a7ef6b6"
 };
 
 firebase.initializeApp(firebaseConfig);
