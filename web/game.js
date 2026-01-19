@@ -81,7 +81,7 @@ const FLIPPER_CONFIG = {
         activeAngle: Math.PI + 0.5
     },
     mini: {
-        pivot: { x: 450, y: 620 },
+        pivot: { x: 480, y: 650 },
         length: 40,
         width: 10,
         restAngle: Math.PI - 0.5,
@@ -355,6 +355,7 @@ class PinballGame {
         this.targetHits = {};
 
         this.scale = 1;
+        this.bestScore = parseInt(localStorage.getItem('pinballBestScore') || '0');
 
         this.initPhysics();
         this.createTable();
@@ -847,6 +848,19 @@ class PinballGame {
 
     showGameOver() {
         document.getElementById('final-score').textContent = this.score.toLocaleString();
+        
+        const newBestEl = document.getElementById('new-best');
+        const bestScoreEl = document.getElementById('best-score');
+        
+        if (this.score > this.bestScore) {
+            this.bestScore = this.score;
+            localStorage.setItem('pinballBestScore', this.bestScore.toString());
+            newBestEl.style.display = 'block';
+        } else {
+            newBestEl.style.display = 'none';
+        }
+        
+        bestScoreEl.textContent = this.bestScore.toLocaleString();
         document.getElementById('game-over').style.display = 'flex';
     }
 
