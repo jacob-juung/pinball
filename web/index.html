@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Pinball</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a14;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            border: 3px solid #a855f7;
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+            border-radius: 8px;
+        }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+        .ui-text {
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 10px currentColor;
+            padding: 5px 10px;
+        }
+        #score { color: #00ffff; }
+        #balls { color: #ff32a0; }
+        #difficulty { color: #ffc800; }
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #666;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        #game-over {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #ff32a0;
+        }
+        #game-over h1 { font-size: 48px; text-shadow: 0 0 20px #ff32a0; margin-bottom: 20px; }
+        #game-over p { color: #00ffff; font-size: 24px; margin: 10px 0; }
+        #game-over button {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 18px;
+            background: transparent;
+            color: #00ff64;
+            border: 2px solid #00ff64;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #game-over button:hover {
+            background: #00ff64;
+            color: #0a0a14;
+            box-shadow: 0 0 20px #00ff64;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game"></canvas>
+        <div id="ui">
+            <span id="score" class="ui-text">SCORE: 0</span>
+            <span id="difficulty" class="ui-text">[NORMAL]</span>
+            <span id="balls" class="ui-text">BALLS: 3</span>
+        </div>
+        <div id="controls">Arrow Keys / Z,X: Flippers | SPACE: Launch | D: Difficulty | R: Reset</div>
+        <div id="game-over">
+            <h1>GAME OVER</h1>
+            <p>Final Score: <span id="final-score">0</span></p>
+            <button onclick="game.reset()">PLAY AGAIN</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
