@@ -1,19 +1,15 @@
 /**
  * Neon Cyberpunk Pinball - JavaScript/Matter.js Version
- * Ported from Python/Pymunk implementation
+ * Mobile-friendly with touch controls
  */
 
 const { Engine, Render, Runner, Bodies, Body, Composite, Events, Constraint, Vector } = Matter;
 
-// =============================================================================
-// CONSTANTS
-// =============================================================================
 const SCREEN_WIDTH = 600;
 const SCREEN_HEIGHT = 800;
 const BALL_RADIUS = 12;
 const BUMPER_RADIUS = 25;
 
-// Colors (Neon Cyberpunk)
 const COLORS = {
     bg: '#0a0a14',
     ball: '#ff3296',
@@ -31,9 +27,6 @@ const COLORS = {
     spinner: '#ff6432'
 };
 
-// =============================================================================
-// DIFFICULTY SETTINGS
-// =============================================================================
 const DIFFICULTY_PRESETS = {
     EASY: {
         name: 'EASY',
@@ -76,9 +69,6 @@ const DIFFICULTY_PRESETS = {
     }
 };
 
-// =============================================================================
-// SOUND MANAGER (Web Audio API)
-// =============================================================================
 class SoundManager {
     constructor() {
         this.ctx = null;
@@ -94,7 +84,6 @@ class SoundManager {
     play(type) {
         if (!this.enabled || !this.ctx) return;
         
-        // Resume context if suspended (browser autoplay policy)
         if (this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
@@ -111,7 +100,6 @@ class SoundManager {
                 osc.frequency.value = 880;
                 osc.type = 'square';
                 gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialDecayTo && gain.gain.exponentialDecayTo(0.01, now + 0.08);
                 gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
                 osc.start(now);
                 osc.stop(now + 0.08);
@@ -160,9 +148,6 @@ class SoundManager {
     }
 }
 
-// =============================================================================
-// PARTICLE SYSTEM
-// =============================================================================
 class ParticleSystem {
     constructor() {
         this.particles = [];
@@ -190,7 +175,7 @@ class ParticleSystem {
             p.life--;
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.1; // gravity
+            p.vy += 0.1;
         }
     }
 
@@ -207,9 +192,6 @@ class ParticleSystem {
     }
 }
 
-// =============================================================================
-// MAIN GAME CLASS
-// =============================================================================
 class PinballGame {
     constructor() {
         this.canvas = document.getElementById('game');
@@ -217,15 +199,12 @@ class PinballGame {
         this.canvas.width = SCREEN_WIDTH;
         this.canvas.height = SCREEN_HEIGHT;
 
-        // Initialize systems
         this.sound = new SoundManager();
         this.particles = new ParticleSystem();
         
-        // Difficulty
-        this.difficultyIndex = 1; // NORMAL
+        this.difficultyIndex = 1;
         this.difficulty = DIFFICULTY_PRESETS.NORMAL;
 
-        // Game state
         this.score = 0;
         this.ballsRemaining = this.difficulty.startingBalls;
         this.ballInPlay = false;
@@ -235,28 +214,63 @@ class PinballGame {
         this.comboMultiplier = 1;
         this.lastHitTime = 0;
 
-        // Plunger state
         this.plungerPower = 0;
         this.plungerCharging = false;
+        this.plungerDragStartY = 0;
+        this.plungerTouchId = null;
 
-        // Input state
         this.keys = {};
+        this.touchLeft = false;
+        this.touchRight = false;
 
-        // Visual effects
         this.ballTrail = [];
         this.bumperHits = {};
         this.targetHits = {};
         this.flipperHits = {};
 
-        // Initialize physics
+        this.scale = 1;
+        this.isMobile = this.detectMobile();
+
         this.initPhysics();
         this.createTable();
         this.setupInput();
+        this.setupTouchControls();
         this.setupCollisions();
+        this.handleResize();
+        window.addEventListener('resize', () => this.handleResize());
 
-        // Start game loop
         this.lastTime = performance.now();
         this.gameLoop();
+    }
+
+    detectMobile() {
+        return ('ontouchstart' in window) || 
+               (navigator.maxTouchPoints > 0) || 
+               window.matchMedia('(pointer: coarse)').matches;
+    }
+
+    handleResize() {
+        const container = document.getElementById('game-container');
+        const wrapper = document.getElementById('game-wrapper');
+        const mobileControls = document.getElementById('mobile-controls');
+        
+        const controlsHeight = this.isMobile ? 100 : 0;
+        const padding = 20;
+        const availableWidth = window.innerWidth - padding;
+        const availableHeight = window.innerHeight - controlsHeight - padding;
+        
+        const scaleX = availableWidth / SCREEN_WIDTH;
+        const scaleY = availableHeight / SCREEN_HEIGHT;
+        this.scale = Math.min(scaleX, scaleY, 1);
+        
+        container.style.transform = `scale(${this.scale})`;
+        container.style.width = `${SCREEN_WIDTH}px`;
+        container.style.height = `${SCREEN_HEIGHT}px`;
+        
+        const scaledWidth = SCREEN_WIDTH * this.scale;
+        const scaledHeight = SCREEN_HEIGHT * this.scale;
+        wrapper.style.width = `${scaledWidth}px`;
+        container.style.marginBottom = `${(SCREEN_HEIGHT - scaledHeight) * -1}px`;
     }
 
     initPhysics() {
@@ -266,7 +280,6 @@ class PinballGame {
     }
 
     createTable() {
-        // Clear existing bodies
         Composite.clear(this.world);
         
         this.ball = null;
@@ -294,7 +307,6 @@ class PinballGame {
 
         const walls = [];
 
-        // Left outer wall
         walls.push(Bodies.fromVertices(40, 475, [[
             { x: 50, y: 750 }, { x: 30, y: 200 }, { x: 35, y: 200 }, { x: 55, y: 750 }
         ]], wallOptions));
@@ -302,20 +314,16 @@ class PinballGame {
             { x: 30, y: 200 }, { x: 80, y: 50 }, { x: 85, y: 55 }, { x: 35, y: 200 }
         ]], wallOptions));
 
-        // Top wall
         walls.push(Bodies.rectangle(300, 47, 440, 6, wallOptions));
 
-        // Right plunger lane walls
         walls.push(Bodies.rectangle(510, 425, 6, 650, wallOptions));
         walls.push(Bodies.rectangle(560, 425, 6, 650, wallOptions));
 
-        // Plunger lane top curve
         walls.push(Bodies.fromVertices(540, 70, [[
             { x: 520, y: 50 }, { x: 545, y: 60 }, { x: 555, y: 80 }, { x: 560, y: 100 },
             { x: 555, y: 100 }, { x: 550, y: 80 }, { x: 540, y: 65 }, { x: 520, y: 55 }
         ]], wallOptions));
 
-        // Left slingshot area
         walls.push(Bodies.fromVertices(75, 700, [[
             { x: 50, y: 750 }, { x: 100, y: 650 }, { x: 105, y: 655 }, { x: 55, y: 750 }
         ]], wallOptions));
@@ -323,7 +331,6 @@ class PinballGame {
             { x: 100, y: 650 }, { x: 150, y: 620 }, { x: 155, y: 625 }, { x: 105, y: 655 }
         ]], wallOptions));
 
-        // Right slingshot area
         walls.push(Bodies.fromVertices(425, 700, [[
             { x: 450, y: 750 }, { x: 400, y: 650 }, { x: 395, y: 655 }, { x: 445, y: 750 }
         ]], wallOptions));
@@ -331,16 +338,13 @@ class PinballGame {
             { x: 400, y: 650 }, { x: 350, y: 620 }, { x: 345, y: 625 }, { x: 395, y: 655 }
         ]], wallOptions));
 
-        // Left drain barrier (diagonal wall preventing left-side drain)
         walls.push(Bodies.fromVertices(110, 575, [[
             { x: 60, y: 540 }, { x: 160, y: 610 }, { x: 155, y: 618 }, { x: 55, y: 548 }
         ]], wallOptions));
 
-        // Inner lane dividers
         walls.push(Bodies.rectangle(150, 200, 4, 100, wallOptions));
         walls.push(Bodies.rectangle(350, 200, 4, 100, wallOptions));
 
-        // Ramp guides
         walls.push(Bodies.fromVertices(190, 350, [[
             { x: 200, y: 300 }, { x: 180, y: 400 }, { x: 175, y: 398 }, { x: 195, y: 300 }
         ]], wallOptions));
@@ -353,10 +357,6 @@ class PinballGame {
     }
 
     createFlippers() {
-        const flipperWidth = 80;
-        const flipperHeight = 16;
-
-        // Left flipper
         this.leftFlipper = Bodies.fromVertices(150, 700, [[
             { x: -15, y: -8 }, { x: 65, y: -4 }, { x: 65, y: 4 }, { x: -15, y: 8 }
         ]], {
@@ -374,7 +374,6 @@ class PinballGame {
             length: 0
         });
 
-        // Right flipper  
         this.rightFlipper = Bodies.fromVertices(350, 700, [[
             { x: 15, y: -8 }, { x: -65, y: -4 }, { x: -65, y: 4 }, { x: 15, y: 8 }
         ]], {
@@ -392,7 +391,6 @@ class PinballGame {
             length: 0
         });
 
-        // Mini flipper (right side, upper)
         this.miniFlipper = Bodies.fromVertices(450, 620, [[
             { x: 8, y: -5 }, { x: -35, y: -3 }, { x: -35, y: 3 }, { x: 8, y: 5 }
         ]], {
@@ -410,7 +408,6 @@ class PinballGame {
             length: 0
         });
 
-        // Set initial angles
         Body.setAngle(this.leftFlipper, 0.18);
         Body.setAngle(this.rightFlipper, -0.18);
         Body.setAngle(this.miniFlipper, -0.18);
@@ -459,7 +456,6 @@ class PinballGame {
     }
 
     createSpinners() {
-        // Spinners are kinematic rotating bars
         const spinnerSpecs = [
             { x: 200, y: 220, length: 80, angle: 0, speed: 2.6 },
             { x: 400, y: 220, length: 80, angle: Math.PI / 2, speed: -3.2 },
@@ -468,7 +464,7 @@ class PinballGame {
 
         for (const spec of spinnerSpecs) {
             const spinner = Bodies.rectangle(spec.x, spec.y, spec.length, 12, {
-                isStatic: true, // We'll manually rotate it
+                isStatic: true,
                 label: 'spinner',
                 restitution: 0.9,
                 friction: 0.6,
@@ -566,6 +562,120 @@ class PinballGame {
         });
     }
 
+    setupTouchControls() {
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const btnMenu = document.getElementById('btn-menu');
+        const btnRestart = document.getElementById('btn-restart');
+        const canvas = this.canvas;
+
+        const addTouchHandlers = (el, onStart, onEnd) => {
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); onStart(); }, { passive: false });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); onEnd(); }, { passive: false });
+            el.addEventListener('touchcancel', (e) => { e.preventDefault(); onEnd(); }, { passive: false });
+            el.addEventListener('mousedown', (e) => { e.preventDefault(); onStart(); });
+            el.addEventListener('mouseup', (e) => { e.preventDefault(); onEnd(); });
+            el.addEventListener('mouseleave', (e) => { onEnd(); });
+        };
+
+        addTouchHandlers(btnLeft, 
+            () => { this.touchLeft = true; btnLeft.classList.add('active'); },
+            () => { this.touchLeft = false; btnLeft.classList.remove('active'); }
+        );
+
+        addTouchHandlers(btnRight,
+            () => { this.touchRight = true; btnRight.classList.add('active'); },
+            () => { this.touchRight = false; btnRight.classList.remove('active'); }
+        );
+
+        let menuTapCount = 0;
+        let menuTapTimer = null;
+        addTouchHandlers(btnMenu,
+            () => {
+                menuTapCount++;
+                if (menuTapTimer) clearTimeout(menuTapTimer);
+                menuTapTimer = setTimeout(() => { menuTapCount = 0; }, 400);
+                
+                if (menuTapCount === 1) {
+                    if (!this.ballInPlay && !this.gameOver) {
+                        this.cycleDifficulty();
+                    }
+                } else if (menuTapCount >= 2) {
+                    this.reset();
+                    menuTapCount = 0;
+                }
+            },
+            () => {}
+        );
+
+        btnRestart.addEventListener('touchstart', (e) => { e.preventDefault(); this.reset(); }, { passive: false });
+        btnRestart.addEventListener('click', () => this.reset());
+
+        canvas.addEventListener('touchstart', (e) => this.handlePlungerTouchStart(e), { passive: false });
+        canvas.addEventListener('touchmove', (e) => this.handlePlungerTouchMove(e), { passive: false });
+        canvas.addEventListener('touchend', (e) => this.handlePlungerTouchEnd(e), { passive: false });
+        canvas.addEventListener('touchcancel', (e) => this.handlePlungerTouchEnd(e), { passive: false });
+    }
+
+    getCanvasCoords(touch) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: (touch.clientX - rect.left) / this.scale,
+            y: (touch.clientY - rect.top) / this.scale
+        };
+    }
+
+    isInPlungerZone(x, y) {
+        return x > 500 && x < 600 && y > 600 && y < 800;
+    }
+
+    handlePlungerTouchStart(e) {
+        if (this.plungerTouchId !== null) return;
+        
+        for (const touch of e.changedTouches) {
+            const coords = this.getCanvasCoords(touch);
+            if (this.isInPlungerZone(coords.x, coords.y) && this.ballInPlay && this.isBallInPlungerLane()) {
+                e.preventDefault();
+                this.plungerTouchId = touch.identifier;
+                this.plungerDragStartY = coords.y;
+                this.plungerCharging = true;
+                this.plungerPower = 0;
+                break;
+            }
+        }
+    }
+
+    handlePlungerTouchMove(e) {
+        if (this.plungerTouchId === null) return;
+        
+        for (const touch of e.changedTouches) {
+            if (touch.identifier === this.plungerTouchId) {
+                e.preventDefault();
+                const coords = this.getCanvasCoords(touch);
+                const dragDistance = coords.y - this.plungerDragStartY;
+                if (dragDistance > 0) {
+                    this.plungerPower = Math.min(dragDistance * 0.5, this.difficulty.plungerMaxPower);
+                }
+                break;
+            }
+        }
+    }
+
+    handlePlungerTouchEnd(e) {
+        for (const touch of e.changedTouches) {
+            if (touch.identifier === this.plungerTouchId) {
+                e.preventDefault();
+                if (this.plungerCharging && this.plungerPower > 0) {
+                    this.launchBall();
+                }
+                this.plungerTouchId = null;
+                this.plungerCharging = false;
+                this.plungerPower = 0;
+                break;
+            }
+        }
+    }
+
     setupCollisions() {
         Events.on(this.engine, 'collisionStart', (event) => {
             for (const pair of event.pairs) {
@@ -608,7 +718,6 @@ class PinballGame {
         this.score += baseScore * this.comboMultiplier;
         this.updateUI();
 
-        // Apply extra impulse away from bumper
         if (this.ball) {
             const dir = Vector.normalise(Vector.sub(this.ball.position, bumper.position));
             Body.applyForce(this.ball, this.ball.position, {
@@ -617,7 +726,6 @@ class PinballGame {
             });
         }
 
-        // Visual effects
         this.bumperHits[bumper.id] = now;
         this.particles.spawn(bumper.position.x, bumper.position.y, COLORS.neonGreen, 15);
     }
@@ -641,7 +749,6 @@ class PinballGame {
         this.flipperHits[flipper.id] = now;
 
         if (this.ball) {
-            // Boost ball when flipper is moving fast
             const angVel = flipper.angularVelocity || 0;
             if (Math.abs(angVel) > 0.1) {
                 Body.setVelocity(this.ball, {
@@ -661,11 +768,9 @@ class PinballGame {
         if (!this.ball) return;
 
         if (this.ballSaverActive) {
-            // Ball saver - return ball to plunger
             Body.setPosition(this.ball, { x: 535, y: 710 });
             Body.setVelocity(this.ball, { x: 0, y: 0 });
         } else {
-            // Remove ball
             Composite.remove(this.world, this.ball);
             this.ball = null;
             this.ballInPlay = false;
@@ -709,15 +814,6 @@ class PinballGame {
         Body.setAngle(this.miniFlipper, Math.min(this.miniFlipperRest + 0.6, this.miniFlipper.angle + 0.15));
     }
 
-    releaseLeft() {
-        Body.setAngularVelocity(this.leftFlipper, this.difficulty.flipperForce * 0.5);
-    }
-
-    releaseRight() {
-        Body.setAngularVelocity(this.rightFlipper, -this.difficulty.flipperForce * 0.5);
-        Body.setAngularVelocity(this.miniFlipper, -this.difficulty.flipperForce * 0.5);
-    }
-
     cycleDifficulty() {
         const names = Object.keys(DIFFICULTY_PRESETS);
         this.difficultyIndex = (this.difficultyIndex + 1) % names.length;
@@ -732,7 +828,6 @@ class PinballGame {
         document.getElementById('balls').textContent = `BALLS: ${this.ballsRemaining}`;
         document.getElementById('difficulty').textContent = `[${this.difficulty.name}]`;
         
-        // Update difficulty color
         const diffEl = document.getElementById('difficulty');
         const colors = { EASY: '#00ff64', NORMAL: '#ffc800', HARD: '#ff32a0' };
         diffEl.style.color = colors[this.difficulty.name] || '#ffc800';
@@ -744,10 +839,8 @@ class PinballGame {
     }
 
     reset() {
-        // Hide game over
         document.getElementById('game-over').style.display = 'none';
 
-        // Reset state
         this.score = 0;
         this.ballsRemaining = this.difficulty.startingBalls;
         this.ballInPlay = false;
@@ -755,14 +848,13 @@ class PinballGame {
         this.comboMultiplier = 1;
         this.plungerPower = 0;
         this.plungerCharging = false;
+        this.plungerTouchId = null;
 
-        // Remove existing ball
         if (this.ball) {
             Composite.remove(this.world, this.ball);
             this.ball = null;
         }
 
-        // Reset flippers
         Body.setAngle(this.leftFlipper, this.leftFlipperRest);
         Body.setAngle(this.rightFlipper, this.rightFlipperRest);
         Body.setAngle(this.miniFlipper, this.miniFlipperRest);
@@ -773,20 +865,17 @@ class PinballGame {
     update(dt) {
         if (this.gameOver) return;
 
-        // Handle input
-        if (this.keys['ArrowLeft'] || this.keys['KeyZ']) {
+        if (this.keys['ArrowLeft'] || this.keys['KeyZ'] || this.touchLeft) {
             this.flipLeft();
         } else {
-            // Return flipper to rest
             if (this.leftFlipper.angle < this.leftFlipperRest) {
                 Body.setAngle(this.leftFlipper, Math.min(this.leftFlipperRest, this.leftFlipper.angle + 0.08));
             }
         }
 
-        if (this.keys['ArrowRight'] || this.keys['KeyX']) {
+        if (this.keys['ArrowRight'] || this.keys['KeyX'] || this.touchRight) {
             this.flipRight();
         } else {
-            // Return flipper to rest
             if (this.rightFlipper.angle > this.rightFlipperRest) {
                 Body.setAngle(this.rightFlipper, Math.max(this.rightFlipperRest, this.rightFlipper.angle - 0.08));
             }
@@ -795,87 +884,58 @@ class PinballGame {
             }
         }
 
-        // Charge plunger
-        if (this.plungerCharging) {
+        if (this.plungerCharging && this.keys['Space']) {
             this.plungerPower = Math.min(this.plungerPower + dt * 50, this.difficulty.plungerMaxPower);
         }
 
-        // Spawn ball if needed
         if (!this.ball && this.ballsRemaining > 0 && !this.gameOver) {
             this.createBall();
         }
 
-        // Update ball saver
         if (this.ballSaverActive && performance.now() > this.ballSaverEndTime) {
             this.ballSaverActive = false;
         }
 
-        // Update spinners (rotate them)
         for (const spinner of this.spinners) {
             spinner.spinnerAngle += spinner.spinnerSpeed * dt * 0.001;
             Body.setAngle(spinner, spinner.spinnerAngle);
         }
 
-        // Update ball trail
         if (this.ball) {
             this.ballTrail.push({ x: this.ball.position.x, y: this.ball.position.y });
             if (this.ballTrail.length > 15) {
                 this.ballTrail.shift();
             }
 
-            // Check if ball fell off screen
             if (this.ball.position.y > SCREEN_HEIGHT + 50) {
                 this.onDrain();
             }
         }
 
-        // Update physics
         Engine.update(this.engine, dt);
-
-        // Update particles
         this.particles.update();
     }
 
     draw() {
         const ctx = this.ctx;
         
-        // Clear with background
         ctx.fillStyle = COLORS.bg;
         ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        // Draw grid
         this.drawGrid(ctx);
-
-        // Draw walls with glow
         this.drawWalls(ctx);
-
-        // Draw bumpers
         this.drawBumpers(ctx);
-
-        // Draw spinners
         this.drawSpinners(ctx);
-
-        // Draw targets
         this.drawTargets(ctx);
-
-        // Draw plunger
         this.drawPlunger(ctx);
-
-        // Draw flippers
         this.drawFlippers(ctx);
-
-        // Draw ball
         this.drawBall(ctx);
-
-        // Draw particles
         this.particles.draw(ctx);
 
-        // Draw ball saver indicator
         if (this.ballSaverActive) {
             this.drawBallSaver(ctx);
         }
 
-        // Draw combo
         if (this.comboMultiplier > 1) {
             this.drawCombo(ctx);
         }
@@ -926,7 +986,6 @@ class PinballGame {
             const timeSinceHit = now - hitTime;
             const isHit = timeSinceHit < 200;
 
-            // Glow
             const gradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, BUMPER_RADIUS + 20);
             gradient.addColorStop(0, isHit ? 'rgba(255,255,255,0.8)' : 'rgba(0,255,100,0.4)');
             gradient.addColorStop(1, 'rgba(0,255,100,0)');
@@ -935,7 +994,6 @@ class PinballGame {
             ctx.arc(pos.x, pos.y, BUMPER_RADIUS + 20, 0, Math.PI * 2);
             ctx.fill();
 
-            // Core
             ctx.fillStyle = isHit ? '#ffffff' : COLORS.neonGreen;
             ctx.shadowColor = COLORS.neonGreen;
             ctx.shadowBlur = 20;
@@ -943,7 +1001,6 @@ class PinballGame {
             ctx.arc(pos.x, pos.y, BUMPER_RADIUS - 5, 0, Math.PI * 2);
             ctx.fill();
 
-            // Ring
             ctx.strokeStyle = COLORS.neonGreen;
             ctx.lineWidth = 3;
             ctx.beginPath();
@@ -968,11 +1025,9 @@ class PinballGame {
             ctx.translate(pos.x, pos.y);
             ctx.rotate(angle);
 
-            // Bar
             ctx.fillStyle = COLORS.spinner;
             ctx.fillRect(-halfLen, -6, halfLen * 2, 12);
 
-            // Center pivot
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(0, 0, 6, 0, Math.PI * 2);
@@ -1013,19 +1068,16 @@ class PinballGame {
     drawPlunger(ctx) {
         const plungerY = this.plungerRestY + (this.plungerPower / this.difficulty.plungerMaxPower) * 15;
 
-        // Plunger body
         ctx.fillStyle = COLORS.plunger;
         ctx.shadowColor = COLORS.plunger;
         ctx.shadowBlur = 15;
         ctx.fillRect(515, plungerY - 5, 40, 10);
         ctx.shadowBlur = 0;
 
-        // Power bar background
         ctx.strokeStyle = '#444';
         ctx.lineWidth = 2;
         ctx.strokeRect(570, 650, 20, 100);
 
-        // Power bar fill
         if (this.plungerPower > 0) {
             const barHeight = (this.plungerPower / this.difficulty.plungerMaxPower) * 100;
             ctx.fillStyle = COLORS.plunger;
@@ -1033,6 +1085,11 @@ class PinballGame {
             ctx.shadowBlur = 10;
             ctx.fillRect(570, 750 - barHeight, 20, barHeight);
             ctx.shadowBlur = 0;
+        }
+
+        if (this.isMobile && this.isBallInPlungerLane() && !this.plungerCharging) {
+            ctx.fillStyle = 'rgba(255, 200, 0, 0.3)';
+            ctx.fillRect(505, 600, 90, 195);
         }
     }
 
@@ -1053,7 +1110,6 @@ class PinballGame {
             ctx.translate(body.position.x, body.position.y);
             ctx.rotate(body.angle);
 
-            // Glow
             ctx.fillStyle = isHit ? '#ffffff' : COLORS.flipper;
             ctx.shadowColor = isHit ? '#ffffff' : COLORS.flipper;
             ctx.shadowBlur = isHit ? 25 : 15;
@@ -1066,7 +1122,6 @@ class PinballGame {
             ctx.closePath();
             ctx.fill();
 
-            // Outline
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.stroke();
@@ -1081,7 +1136,6 @@ class PinballGame {
 
         const pos = this.ball.position;
 
-        // Trail
         if (this.ballTrail.length > 1) {
             ctx.strokeStyle = COLORS.neonPink;
             ctx.lineCap = 'round';
@@ -1097,7 +1151,6 @@ class PinballGame {
             ctx.globalAlpha = 1;
         }
 
-        // Glow
         const gradient = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, BALL_RADIUS + 15);
         gradient.addColorStop(0, 'rgba(255,50,150,0.6)');
         gradient.addColorStop(1, 'rgba(255,50,150,0)');
@@ -1106,7 +1159,6 @@ class PinballGame {
         ctx.arc(pos.x, pos.y, BALL_RADIUS + 15, 0, Math.PI * 2);
         ctx.fill();
 
-        // Ball body
         ctx.fillStyle = COLORS.neonPink;
         ctx.shadowColor = COLORS.neonPink;
         ctx.shadowBlur = 20;
@@ -1114,7 +1166,6 @@ class PinballGame {
         ctx.arc(pos.x, pos.y, BALL_RADIUS, 0, Math.PI * 2);
         ctx.fill();
 
-        // Highlight
         ctx.fillStyle = 'rgba(255,200,220,0.8)';
         ctx.beginPath();
         ctx.arc(pos.x - 3, pos.y - 3, 4, 0, Math.PI * 2);
@@ -1126,14 +1177,12 @@ class PinballGame {
         const timeLeft = Math.max(0, (this.ballSaverEndTime - performance.now()) / 1000);
         const pulse = (Math.sin(performance.now() * 0.01) + 1) * 0.5;
 
-        // Arc at bottom
         ctx.strokeStyle = `rgba(0,255,100,${0.3 + pulse * 0.3})`;
         ctx.lineWidth = 10;
         ctx.beginPath();
         ctx.arc(275, 850, 200, Math.PI * 1.2, Math.PI * 1.8);
         ctx.stroke();
 
-        // Text
         ctx.fillStyle = COLORS.neonGreen;
         ctx.font = 'bold 18px "Segoe UI", sans-serif';
         ctx.textAlign = 'center';
@@ -1155,7 +1204,7 @@ class PinballGame {
 
     gameLoop() {
         const now = performance.now();
-        const dt = Math.min(now - this.lastTime, 32); // Cap at ~30fps minimum
+        const dt = Math.min(now - this.lastTime, 32);
         this.lastTime = now;
 
         this.update(dt);
@@ -1165,7 +1214,6 @@ class PinballGame {
     }
 }
 
-// Start game when page loads
 let game;
 window.addEventListener('load', () => {
     game = new PinballGame();

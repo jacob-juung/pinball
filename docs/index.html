@@ -2,24 +2,41 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Neon Pinball</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
+        html, body {
             background: #0a0a14;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             font-family: 'Segoe UI', sans-serif;
             overflow: hidden;
+            height: 100%;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
         }
         #game-container {
             position: relative;
             border: 3px solid #a855f7;
             box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
             border-radius: 8px;
+            transform-origin: top center;
         }
         canvas { display: block; }
         #ui {
@@ -30,12 +47,15 @@
             display: flex;
             justify-content: space-between;
             pointer-events: none;
+            z-index: 10;
         }
         .ui-text {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             text-shadow: 0 0 10px currentColor;
-            padding: 5px 10px;
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 4px;
         }
         #score { color: #00ffff; }
         #balls { color: #ff32a0; }
@@ -46,8 +66,9 @@
             left: 50%;
             transform: translateX(-50%);
             color: #666;
-            font-size: 12px;
+            font-size: 11px;
             pointer-events: none;
+            white-space: nowrap;
         }
         #game-over {
             position: absolute;
@@ -58,39 +79,141 @@
             justify-content: center;
             align-items: center;
             color: #ff32a0;
+            z-index: 100;
         }
-        #game-over h1 { font-size: 48px; text-shadow: 0 0 20px #ff32a0; margin-bottom: 20px; }
-        #game-over p { color: #00ffff; font-size: 24px; margin: 10px 0; }
+        #game-over h1 { font-size: 36px; text-shadow: 0 0 20px #ff32a0; margin-bottom: 15px; }
+        #game-over p { color: #00ffff; font-size: 20px; margin: 8px 0; }
         #game-over button {
-            margin-top: 20px;
-            padding: 15px 30px;
-            font-size: 18px;
+            margin-top: 15px;
+            padding: 12px 24px;
+            font-size: 16px;
             background: transparent;
             color: #00ff64;
             border: 2px solid #00ff64;
             cursor: pointer;
             transition: all 0.3s;
         }
-        #game-over button:hover {
+        #game-over button:hover, #game-over button:active {
             background: #00ff64;
             color: #0a0a14;
             box-shadow: 0 0 20px #00ff64;
         }
+
+        #mobile-controls {
+            display: none;
+            width: 100%;
+            max-width: 600px;
+            padding: 10px;
+            gap: 10px;
+        }
+        .touch-btn {
+            flex: 1;
+            height: 80px;
+            border: 3px solid;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            background: rgba(0,0,0,0.6);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s;
+            text-shadow: 0 0 10px currentColor;
+        }
+        .touch-btn:active, .touch-btn.active {
+            transform: scale(0.95);
+        }
+        #btn-left {
+            color: #00ffff;
+            border-color: #00ffff;
+            box-shadow: 0 0 15px rgba(0,255,255,0.3);
+        }
+        #btn-left:active, #btn-left.active {
+            background: rgba(0,255,255,0.3);
+            box-shadow: 0 0 25px rgba(0,255,255,0.6);
+        }
+        #btn-right {
+            color: #00ffff;
+            border-color: #00ffff;
+            box-shadow: 0 0 15px rgba(0,255,255,0.3);
+        }
+        #btn-right:active, #btn-right.active {
+            background: rgba(0,255,255,0.3);
+            box-shadow: 0 0 25px rgba(0,255,255,0.6);
+        }
+        #btn-menu {
+            flex: 0.5;
+            color: #a855f7;
+            border-color: #a855f7;
+            box-shadow: 0 0 15px rgba(168,85,247,0.3);
+            font-size: 14px;
+        }
+
+        #plunger-hint {
+            display: none;
+            position: absolute;
+            right: 5px;
+            bottom: 80px;
+            color: #ffc800;
+            font-size: 11px;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 0 0 5px #ffc800;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        @media (max-width: 768px), (pointer: coarse) {
+            #mobile-controls {
+                display: flex;
+            }
+            #controls {
+                display: none;
+            }
+            #plunger-hint {
+                display: block;
+            }
+            body {
+                justify-content: flex-start;
+                padding-top: 10px;
+            }
+        }
+        @media (max-height: 700px) and (pointer: coarse) {
+            .touch-btn {
+                height: 60px;
+                font-size: 16px;
+            }
+            .ui-text {
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <canvas id="game"></canvas>
-        <div id="ui">
-            <span id="score" class="ui-text">SCORE: 0</span>
-            <span id="difficulty" class="ui-text">[NORMAL]</span>
-            <span id="balls" class="ui-text">BALLS: 3</span>
+    <div id="game-wrapper">
+        <div id="game-container">
+            <canvas id="game"></canvas>
+            <div id="ui">
+                <span id="score" class="ui-text">SCORE: 0</span>
+                <span id="difficulty" class="ui-text">[NORMAL]</span>
+                <span id="balls" class="ui-text">BALLS: 3</span>
+            </div>
+            <div id="controls">Arrow/Z,X: Flippers | SPACE: Launch | D: Difficulty | R: Reset</div>
+            <div id="plunger-hint">DRAG DOWN<br>TO LAUNCH</div>
+            <div id="game-over">
+                <h1>GAME OVER</h1>
+                <p>Final Score: <span id="final-score">0</span></p>
+                <button id="btn-restart">PLAY AGAIN</button>
+            </div>
         </div>
-        <div id="controls">Arrow Keys / Z,X: Flippers | SPACE: Launch | D: Difficulty | R: Reset</div>
-        <div id="game-over">
-            <h1>GAME OVER</h1>
-            <p>Final Score: <span id="final-score">0</span></p>
-            <button onclick="game.reset()">PLAY AGAIN</button>
+        <div id="mobile-controls">
+            <div id="btn-left" class="touch-btn">LEFT</div>
+            <div id="btn-menu" class="touch-btn">D / R</div>
+            <div id="btn-right" class="touch-btn">RIGHT</div>
         </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
