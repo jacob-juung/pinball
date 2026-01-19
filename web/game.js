@@ -71,24 +71,21 @@ const FLIPPER_CONFIG = {
         length: 75,
         width: 14,
         restAngle: 0.5,
-        activeAngle: -0.5,
-        direction: -1
+        activeAngle: -0.5
     },
     right: {
         pivot: { x: 350, y: 700 },
         length: 75,
         width: 14,
-        restAngle: -0.5,
-        activeAngle: 0.5,
-        direction: 1
+        restAngle: Math.PI - 0.5,
+        activeAngle: Math.PI + 0.5
     },
     mini: {
         pivot: { x: 450, y: 620 },
         length: 40,
         width: 10,
-        restAngle: -0.5,
-        activeAngle: 0.5,
-        direction: 1
+        restAngle: Math.PI - 0.5,
+        activeAngle: Math.PI + 0.5
     }
 };
 
