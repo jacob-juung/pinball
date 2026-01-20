@@ -29,7 +29,7 @@ const COLORS = {
 const DIFFICULTY_PRESETS = {
     EASY: {
         name: 'EASY',
-        gravity: 0.8,
+        gravity: 0.4,
         ballRestitution: 0.8,
         flipperPower: 18,
         bumperRestitution: 1.8,
@@ -41,7 +41,7 @@ const DIFFICULTY_PRESETS = {
     },
     NORMAL: {
         name: 'NORMAL',
-        gravity: 1.0,
+        gravity: 0.5,
         ballRestitution: 0.7,
         flipperPower: 16,
         bumperRestitution: 1.5,
@@ -53,7 +53,7 @@ const DIFFICULTY_PRESETS = {
     },
     HARD: {
         name: 'HARD',
-        gravity: 1.4,
+        gravity: 0.7,
         ballRestitution: 0.6,
         flipperPower: 14,
         bumperRestitution: 1.3,
@@ -68,21 +68,21 @@ const DIFFICULTY_PRESETS = {
 const FLIPPER_CONFIG = {
     left: {
         pivot: { x: 150, y: 700 },
-        length: 75,
+        length: 85,
         width: 14,
         restAngle: 0.5,
         activeAngle: -0.5
     },
     right: {
         pivot: { x: 350, y: 700 },
-        length: 75,
+        length: 85,
         width: 14,
         restAngle: Math.PI - 0.5,
         activeAngle: Math.PI + 0.5
     },
     mini: {
-        pivot: { x: 480, y: 650 },
-        length: 40,
+        pivot: { x: 510, y: 650 },
+        length: 50,
         width: 10,
         restAngle: Math.PI - 0.5,
         activeAngle: Math.PI + 0.5
@@ -453,8 +453,8 @@ class PinballGame {
             { x: 400, y: 650 }, { x: 350, y: 620 }, { x: 345, y: 625 }, { x: 395, y: 655 }
         ]], wallOptions));
 
-        walls.push(Bodies.fromVertices(110, 575, [[
-            { x: 60, y: 540 }, { x: 160, y: 610 }, { x: 155, y: 618 }, { x: 55, y: 548 }
+        walls.push(Bodies.fromVertices(90, 575, [[
+            { x: 40, y: 540 }, { x: 140, y: 610 }, { x: 135, y: 618 }, { x: 35, y: 548 }
         ]], wallOptions));
 
         walls.push(Bodies.rectangle(150, 200, 4, 100, wallOptions));
