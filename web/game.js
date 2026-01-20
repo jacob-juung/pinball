@@ -429,7 +429,7 @@ class PinballGame {
             { x: 30, y: 200 }, { x: 80, y: 50 }, { x: 85, y: 55 }, { x: 35, y: 200 }
         ]], wallOptions));
 
-        walls.push(Bodies.rectangle(300, 47, 440, 6, wallOptions));
+        walls.push(Bodies.rectangle(300, 47, 440, 6, { ...wallOptions, angle: 0.05 }));
 
         walls.push(Bodies.rectangle(510, 425, 6, 650, wallOptions));
         walls.push(Bodies.rectangle(560, 425, 6, 650, wallOptions));
