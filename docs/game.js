@@ -920,20 +920,29 @@ class PinballGame {
     }
     
     async cleanupLeaderboard() {
-        const snapshot = await database.ref('leaderboard').orderByChild('score').once('value');
-        const scores = [];
-        snapshot.forEach(child => {
-            scores.push({ key: child.key, score: child.val().score });
-        });
-        scores.sort((a, b) => b.score - a.score);
-        
-        if (scores.length > 10) {
-            const toDelete = scores.slice(10);
-            const updates = {};
-            toDelete.forEach(item => {
-                updates[item.key] = null;
+        try {
+            const snapshot = await database.ref('leaderboard').once('value');
+            const scores = [];
+            snapshot.forEach(child => {
+                const val = child.val();
+                if (val && typeof val.score === 'number') {
+                    scores.push({ key: child.key, score: val.score });
+                }
             });
-            await database.ref('leaderboard').update(updates);
+            scores.sort((a, b) => b.score - a.score);
+            
+            if (scores.length > 10) {
+                const toDelete = scores.slice(10);
+                if (toDelete.length > 0 && toDelete.length < scores.length) {
+                    const updates = {};
+                    toDelete.forEach(item => {
+                        updates[item.key] = null;
+                    });
+                    await database.ref('leaderboard').update(updates);
+                }
+            }
+        } catch (error) {
+            console.error('Cleanup failed:', error);
         }
     }
     
