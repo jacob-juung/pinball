@@ -420,7 +420,18 @@ class PinballGame {
             label: 'wall'
         };
 
+        const boundaryOptions = {
+            isStatic: true,
+            restitution: 0.5,
+            friction: 0.3,
+            label: 'boundary'
+        };
+
         const walls = [];
+
+        walls.push(Bodies.rectangle(-15, 400, 30, 800, boundaryOptions));
+        walls.push(Bodies.rectangle(300, -15, 600, 30, boundaryOptions));
+        walls.push(Bodies.rectangle(507, 350, 10, 700, boundaryOptions));
 
         walls.push(Bodies.fromVertices(40, 475, [[
             { x: 50, y: 750 }, { x: 30, y: 200 }, { x: 35, y: 200 }, { x: 55, y: 750 }
@@ -510,7 +521,7 @@ class PinballGame {
 
     createSpinners() {
         const spinnerSpecs = [
-            { x: 200, y: 220, length: 80, angle: 0, speed: 2.6 },
+            { x: 240, y: 220, length: 80, angle: 0, speed: 2.6 },
             { x: 400, y: 220, length: 80, angle: Math.PI / 2, speed: -3.2 },
             { x: 300, y: 320, length: 90, angle: 0, speed: 2.0 }
         ];
